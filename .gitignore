@@ -1,0 +1,98 @@
+# ==========================================
+# Environment & Secrets (NEVER COMMIT KEYS)
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# Virtual Environments
+# ==========================================
+.venv/
+venv/
+ENV/
+env/
+
+# ==========================================
+# Python Bytecode & Cache
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# Type Checking & Linting Caches
+# ==========================================
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# ==========================================
+# Testing & Code Coverage
+# ==========================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+
+# ==========================================
+# Build Artifacts & Packaging
+# ==========================================
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ==========================================
+# Vector Database & Embeddings Cache
+# ==========================================
+.chroma/
+*.chroma
+
+# ==========================================
+# Datasets & Local Database Files
+# ==========================================
+spider_data/
+spider_data*/
+*.sqlite
+*.sqlite3
+*.db
+
+# ==========================================
+# Benchmark Reports & Checkpoints
+# ==========================================
+checkpoints/
+experiment_report_*.json
+results.csv
+
+# ==========================================
+# Logs & Temp Files
+# ==========================================
+*.log
+logs/
+tmp/
+temp/
+
+# ==========================================
+# IDE & Operating System Files
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# ==========================================
+# Local Documents & Git Worktrees
+# ==========================================
+.worktrees/
+*.pdf
+docs/interview-prep.md
