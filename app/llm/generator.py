@@ -1,0 +1,60 @@
+import re
+from typing import Any
+
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from app.llm.prompts import SYSTEM_PROMPT
+
+
+def extract_text(content: Any) -> str:
+    """Extract plain text from LLM response content (supports str and list of dict parts)."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict) and "text" in part:
+                parts.append(str(part["text"]))
+            elif hasattr(part, "text"):
+                parts.append(str(part.text))
+        return "".join(parts)
+    return str(content)
+    
+
+class SQLGenerator:
+    def __init__(self, llm: BaseChatModel) -> None:
+        self.llm = llm
+
+    async def agenerate(self, user_prompt: str) -> tuple[str, dict[str, Any]]:
+        """Async version of generate. Returns (sql, usage) where usage may be empty."""
+        messages = [
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=user_prompt),
+        ]
+        response = await self.llm.ainvoke(messages)
+        sql = extract_text(response.content).strip()
+        sql = re.sub(r"^```(?:sql)?\s*", "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\s*```$", "", sql)
+        usage: dict[str, Any] = {}
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            usage = dict(response.usage_metadata)
+        return sql.strip(), usage
+
+    def generate(self, user_prompt: str) -> tuple[str, dict[str, Any]]:
+        """Generate SQL from a prompt. Returns (sql, usage) where usage may be empty."""
+        messages = [
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=user_prompt),
+        ]
+        response = self.llm.invoke(messages)
+        sql = extract_text(response.content).strip()
+        # Strip markdown code fences if present
+        sql = re.sub(r"^```(?:sql)?\s*", "", sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\s*```$", "", sql)
+        usage: dict[str, Any] = {}
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            usage = dict(response.usage_metadata)
+        return sql.strip(), usage
