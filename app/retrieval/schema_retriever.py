@@ -99,20 +99,31 @@ class SchemaRetriever:
         metadatas = results["metadatas"]
         documents = results["documents"]
         distances = results.get("distances")
-        if metadatas is None or documents is None:
-            return docs
-        for i, (meta, text) in enumerate(zip(metadatas[0], documents[0], strict=False)):
-            if (
-                similarity_threshold is not None
-                and distances is not None
-                and distances[0][i] > similarity_threshold
-            ):
-                continue
-            docs.append(
-                _parse_schema_text(
-                    text=text,
-                    db_id=str(meta["db_id"]),
-                    table_name=str(meta["table_name"]),
+        if metadatas is not None and documents is not None and metadatas:
+            for i, (meta, text) in enumerate(zip(metadatas[0], documents[0], strict=False)):
+                if (
+                    similarity_threshold is not None
+                    and distances is not None
+                    and distances[0][i] > similarity_threshold
+                ):
+                    continue
+                docs.append(
+                    _parse_schema_text(
+                        text=text,
+                        db_id=str(meta["db_id"]),
+                        table_name=str(meta["table_name"]),
+                    )
                 )
-            )
+
+        if not docs:
+            from pathlib import Path
+
+            from app.db.introspection import extract_schema
+            from app.db.storage import resolve_db_path
+
+            db_path = resolve_db_path(db_id)
+            if Path(db_path).is_file():
+                fallback_docs = extract_schema(db_path, db_id=db_id)
+                docs = fallback_docs[:top_k]
+
         return docs

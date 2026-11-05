@@ -4,8 +4,9 @@ from sqlalchemy import inspect as sa_inspect
 from app.db.schema_doc import ColumnInfo, ForeignKeyInfo, SchemaDocument
 
 
-def extract_schema(db_path: str) -> list[SchemaDocument]:
+def extract_schema(db_path: str, db_id: str | None = None) -> list[SchemaDocument]:
     """Extract schema information from a SQLite database file using SQLAlchemy inspection."""
+    effective_db_id = db_id if db_id is not None else db_path
     engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
     inspector = sa_inspect(engine)
     docs: list[SchemaDocument] = []
@@ -41,7 +42,7 @@ def extract_schema(db_path: str) -> list[SchemaDocument]:
 
         docs.append(
             SchemaDocument(
-                db_id=db_path,
+                db_id=effective_db_id,
                 table_name=table_name,
                 columns=columns,
                 foreign_keys=foreign_keys,

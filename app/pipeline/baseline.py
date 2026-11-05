@@ -1,5 +1,6 @@
 from app.api.models import ExecutionMetadata, QueryRequest, QueryResponse
 from app.db.executor import SQLExecutor
+from app.db.storage import resolve_db_path
 from app.db.validator import SQLValidator
 from app.llm.generator import SQLGenerator
 from app.pipeline.assembler import PromptAssembler
@@ -54,7 +55,7 @@ class BaselinePipeline:
                 flags=["validation_failed", validation.error or ""],
                 step_timings={"usage": usage} if usage else None,
             )
-        db_path = f"{self.spider_data_dir}/database/{request.db_id}/{request.db_id}.sqlite"
+        db_path = resolve_db_path(request.db_id, self.spider_data_dir)
         exec_result = await self.executor.execute(sql, db_path)
         answer = (
             str(exec_result.rows)
@@ -65,6 +66,8 @@ class BaselinePipeline:
             question=request.question,
             generated_sql=sql,
             answer=answer,
+            column_names=exec_result.column_names if exec_result.success else [],
+            rows=exec_result.rows if exec_result.success else [],
             retrieved_schema_summary=[d.table_name for d in schema_docs],
             retrieved_examples_summary=[e.question for e in example_docs],
             execution_metadata=ExecutionMetadata(

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "DataPilot AI – AI-Powered Text-to-SQL Assistant"
+name = "TextToSQL"
 version = "0.1.0"
 description = "Text-to-SQL backend with Dual RAG"
 requires-python = ">=3.12"
@@ -27,6 +27,9 @@ dependencies = [
     "google-genai>=2.34.0",
     "langchain-google-genai>=4.4.2",
     "langchain-huggingface>=1.2.3",
+    "python-multipart>=0.0.33",
+    "pandas>=3.1.1",
+    "openpyxl>=3.1.5",
 ]
 
 [project.optional-dependencies]

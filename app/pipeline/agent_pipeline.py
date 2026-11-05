@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.prebuilt import create_react_agent
 
 from app.api.models import ExecutionMetadata, QueryRequest, QueryResponse
+from app.db.storage import resolve_db_path
 from app.llm.generator import extract_text
 from app.pipeline.agent_tools import ToolContext, make_tools
 
@@ -122,9 +123,7 @@ class AgentPipeline:
                 retry_count=retry_count,
             )
 
-        db_path = (
-            f"{self.tool_context.spider_data_dir}/database/{request.db_id}/{request.db_id}.sqlite"
-        )
+        db_path = resolve_db_path(request.db_id, self.tool_context.spider_data_dir)
         exec_result = await self.tool_context.executor.execute(raw_sql, db_path)
 
         answer = (
@@ -137,6 +136,8 @@ class AgentPipeline:
             question=request.question,
             generated_sql=raw_sql,
             answer=answer,
+            column_names=exec_result.column_names if exec_result.success else [],
+            rows=exec_result.rows if exec_result.success else [],
             retrieved_schema_summary=retrieved_schema_summary,
             execution_metadata=ExecutionMetadata(
                 success=exec_result.success,

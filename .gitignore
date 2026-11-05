@@ -58,9 +58,18 @@ dist/
 # ==========================================
 spider_data/
 spider_data*/
+uploads/
 *.sqlite
 *.sqlite3
 *.db
+
+# ==========================================
+# Frontend Node.js
+# ==========================================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.oxlintrc.json
 
 # ==========================================
 # Benchmark Reports & Checkpoints

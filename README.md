@@ -1,54 +1,71 @@
 # 🚀 DataPilot AI (Text2SQL)
 
-> **Turn plain English questions into accurate SQL queries and database answers using Dual RAG and AI.**
+> **Turn plain English questions into accurate SQL queries and database answers using Dual RAG and AI — on pre-built databases or your own uploaded spreadsheets & tables.**
 
 Ask a question like:
-> *"How many singers are from the USA?"*
+> *"Show the top 5 customers by revenue"* or *"How many singers are from the USA?"*
 
 DataPilot AI will automatically:
-1. 🔍 **Find the right tables & columns** in your database (Schema Retrieval).
-2. 💡 **Find similar question-to-SQL examples** to guide the AI (Few-Shot Retrieval).
-3. 🤖 **Write the SQL query** using an LLM (Google Gemini, OpenAI, or Claude).
-4. 🛡️ **Check the query for errors** and safety (SQL Validator).
-5. ⚡ **Run the query on the database** and return your real answer.
+1. 📁 **Ingest custom datasets** (CSV, TSV, multi-sheet Excel, JSON, Parquet, or SQLite).
+2. 🔍 **Find the right tables & columns** in your database (Schema Retrieval).
+3. 💡 **Find similar question-to-SQL examples** to guide the AI (Few-Shot Retrieval).
+4. 🤖 **Write the SQL query** using an LLM (Google Gemini, Claude, or OpenAI).
+5. 🛡️ **Check the query for errors** and safety (SQL Validator).
+6. ⚡ **Run the query on the database** and return real, structured tabular results (`column_names` & `rows`).
 
 ---
 
 ## 📑 Table of Contents
-- [How It Works (Dual RAG)](#-how-it-works-dual-rag)
-- [Pipeline Modes](#-pipeline-modes)
-- [Quickstart Guide](#-quickstart-guide)
-  - [1. Prerequisites](#1-prerequisites)
-  - [2. Installation](#2-installation)
-  - [3. Configure Environment (.env)](#3-configure-environment-env)
-  - [4. Index the Database](#4-index-the-database)
-  - [5. Start the Server](#5-start-the-server)
-- [Testing the API](#-testing-the-api)
-- [Running Experiments & Benchmarks](#-running-experiments--benchmarks)
-- [Project Structure](#-project-structure)
+- [✨ Key Features](#-key-features)
+- [🧠 How It Works (Dual RAG)](#-how-it-works-dual-rag)
+- [🎛️ Pipeline Modes](#-pipeline-modes)
+- [⚡ Quickstart Guide](#-quickstart-guide)
+  - [1. Backend Setup](#1-backend-setup)
+  - [2. Configure Environment (.env)](#2-configure-environment-env)
+  - [3. Start the Backend Server](#3-start-the-backend-server)
+  - [4. Start the Frontend (Optional)](#4-start-the-frontend-optional)
+- [🧪 API Reference & Testing](#-api-reference--testing)
+  - [File Upload (`POST /upload`)](#1-file-upload-post-upload)
+  - [Text2SQL Query (`POST /query`)](#2-text2sql-query-post-query)
+  - [Database Explorer (`GET /databases`)](#3-database-explorer-get-databases)
+  - [Table Data Preview (`GET /databases/{db_id}/tables/{table_name}/data`)](#4-table-data-preview)
+- [📊 Running Experiments & Benchmarks](#-running-experiments--benchmarks)
+- [📁 Project Structure](#-project-structure)
+- [🛠️ Verification & Development Commands](#️-verification--development-commands)
+
+---
+
+## ✨ Key Features
+
+- 📤 **Upload Table Files Directly**: Upload `.csv`, `.tsv`, `.xlsx`, `.xls`, `.json`, `.parquet`, or `.sqlite` files. Data is automatically parsed, typed, sanitized, and stored as SQLite tables.
+- 📊 **Multi-Sheet Excel Support**: Uploading an Excel workbook automatically converts each sheet into its own relational table.
+- ⚡ **Structured Table Outputs**: Returns both raw SQL and structured `column_names` and `rows` arrays ready to display in frontend datatables.
+- 🔄 **Self-Healing SQL**: Self-corrects syntax and runtime errors automatically when running under the `deterministic` pipeline mode.
+- 🎨 **Modern React Frontend**: Initialized with Vite, TypeScript, Tailwind CSS v4, shadcn UI, and React Bits animations.
+- 🔌 **CORS Enabled**: Out-of-the-box cross-origin support for seamless local and remote frontend integration.
 
 ---
 
 ## 🧠 How It Works (Dual RAG)
 
-If you just give an LLM a question without context, it will hallucinate table names or make up columns that don't exist.
+If you give an LLM a question without context, it will hallucinate table names or invent columns that don't exist.
 
-**Dual RAG** solves this by retrieving **two separate pieces of information** from a local vector database (ChromaDB) before calling the AI:
+**Dual RAG** solves this by retrieving **two separate pieces of information** before calling the AI:
 
 ```mermaid
 flowchart TD
-    UserQuestion["User Question<br><i>'How many singers are there?'</i>"]
+    UserQuestion["User Question<br><i>'Top 3 customers by spend'</i>"]
     
-    subgraph DualRAG["ChromaDB Vector Store (all-MiniLM-L6-v2)"]
-        Stream1["1. Schema Retrieval<br><i>Finds table: singer (singer_id, name...)</i>"]
-        Stream2["2. Example Retrieval<br><i>Finds: Q: Count singers -> SQL: SELECT count...</i>"]
+    subgraph DualRAG["ChromaDB Vector Store + Dynamic Schema Fallback"]
+        Stream1["1. Schema Retrieval<br><i>Finds table: customers (id, name, total_spend)</i>"]
+        Stream2["2. Example Retrieval<br><i>Finds: Q: Top spenders -> SQL: SELECT... ORDER BY...</i>"]
     end
     
     Assembler["Prompt Assembler<br><i>Combines Schema + Examples + Question</i>"]
-    LLM["LLM (Gemini / Claude / GPT)<br><i>Writes SQL Query</i>"]
+    LLM["LLM (Gemini / Claude / GPT)<br><i>Generates SQL Query</i>"]
     Validator["SQL Validator (sqlglot)<br><i>Ensures valid SELECT statement</i>"]
-    Database["Database (SQLite)<br><i>Executes query on disk</i>"]
-    FinalAnswer["Final Answer<br><i>SQL: SELECT count(*) FROM singer<br>Result: [[6]]</i>"]
+    Database["Database (SQLite)<br><i>Executes query on uploaded or spider db</i>"]
+    FinalAnswer["Structured Tabular Result<br><i>columns: [name, total_spend]<br>rows: [['Acme', 5000], ['Beta', 3200]]</i>"]
 
     UserQuestion --> Stream1
     UserQuestion --> Stream2
@@ -70,19 +87,16 @@ You can switch between three pipeline modes in your `.env` file depending on you
 | Mode | What it does | Speed | LLM Calls | Best For |
 |---|---|:---:|:---:|---|
 | **`baseline`** | Linear 1-shot pipeline: retrieves context, writes SQL once, validates, and runs. | ⚡ Fastest (~1.2s) | 1 call | Daily use, fast response, low token usage. |
-| **`deterministic`** | **Self-healing pipeline:** Refines schema to 100% precision. If SQL has a syntax error, it automatically sends the error back to the LLM to fix it. | 🛡️ High Accuracy (~2.4s) | 2–3 calls | Complex databases where queries might need automatic repair. |
+| **`deterministic`** | **Self-healing pipeline (LangGraph):** Refines schema to 100% precision. If SQL has a syntax error, it automatically critiques and fixes it. | 🛡️ High Accuracy (~2.4s) | 2–3 calls | Complex databases where queries might need automatic repair. |
 | **`agent`** | Autonomous ReAct agent: the LLM dynamically decides when to inspect schemas, test queries, and execute tools. | 🐢 Slower | 5–10 calls | Research, complex multi-hop investigation. |
 
 ---
 
 ## ⚡ Quickstart Guide
 
-### 1. Prerequisites
+### 1. Backend Setup
 - **Python 3.12** installed
 - **`uv`** package manager installed ([Install uv](https://docs.astral.sh/uv/getting-started/installation/))
-
-### 2. Installation
-Clone the repository and install all dependencies:
 
 ```bash
 # Clone the repository
@@ -93,132 +107,133 @@ cd "DataPilot AI"
 uv sync --extra dev
 ```
 
-### 3. Configure Environment (`.env`)
+### 2. Configure Environment (`.env`)
 Create your `.env` file from `.env.example`:
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and configure your LLM and embeddings. For example, using **Google Gemini** + **Free Local Embeddings**:
-
+Configure your LLM settings in `.env`:
 ```env
-# LLM Settings (Google Gemini)
+# LLM Provider (gemini, anthropic, or openai)
 LLM_PROVIDER=gemini
 LLM_MODEL=gemini-3.5-flash-lite
-GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_API_KEY=your-api-key-here
 
-# Free, Fast Local Embeddings (Runs 100% on your machine)
+# Local Embeddings (Free, runs on CPU)
 EMBEDDING_PROVIDER=sentence-transformers
 EMBEDDING_MODEL=all-MiniLM-L6-v2
-HF_HUB_OFFLINE=1
 
 # Storage & Pipeline Settings
 CHROMA_PERSIST_DIR=.chroma
 SPIDER_DATA_DIR=spider_data
+UPLOAD_DIR=uploads
 PIPELINE_VARIANT=baseline
-MAX_RETRIES=2
-LOG_LEVEL=INFO
 ```
 
-> 💡 **Tip:** You can also use `LLM_PROVIDER=anthropic` (`ANTHROPIC_API_KEY`) or `LLM_PROVIDER=openai` (`OPENAI_API_KEY`).
-
-### 4. Index the Database
-Place the [Spider benchmark dataset](https://yale-lily.github.io/spider) inside `spider_data/` and index all schemas and examples into ChromaDB (run once):
-
-```bash
-uv run python scripts/index_spider.py
-```
-
-*Output:*
-```text
-Loaded 876 schema documents -> Indexed into ChromaDB
-Loaded 7000 training examples -> Indexed into ChromaDB
-Indexing complete!
-```
-
-### 5. Start the Server
-Run the FastAPI web backend:
+### 3. Start the Backend Server
 
 ```bash
 uv run uvicorn app.main:app --reload
 ```
+The API is now live at **`http://127.0.0.1:8000`** (Swagger docs at `http://127.0.0.1:8000/docs`).
 
-The server is now live at **`http://127.0.0.1:8000`**!
+### 4. Start the Frontend (Optional)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The Vite React app will be live at **`http://localhost:5173`**.
 
 ---
 
-## 🧪 Testing the API
+## 🧪 API Reference & Testing
 
-### Option A: Interactive Web UI (Swagger)
-Open your browser and visit:
-👉 **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**
+### 1. File Upload (`POST /upload`)
+Upload a table file to create a queryable database:
 
-1. Click on `POST /query` $\rightarrow$ **Try it out**
-2. Paste the JSON below and click **Execute**:
+```bash
+curl -X POST "http://127.0.0.1:8000/upload" \
+  -F "file=@employees.csv" \
+  -F "db_id=company_db" \
+  -F "table_name=staff"
+```
+
+**Response:**
 ```json
 {
-  "question": "How many singers are there?",
-  "db_id": "concert_singer"
+  "success": true,
+  "message": "Successfully ingested 1 table(s) into database 'company_db'.",
+  "db_id": "company_db",
+  "tables": [
+    {
+      "name": "staff",
+      "row_count": 50,
+      "columns": [
+        {"name": "id", "data_type": "BIGINT", "is_primary_key": false},
+        {"name": "name", "data_type": "TEXT", "is_primary_key": false},
+        {"name": "salary", "data_type": "FLOAT", "is_primary_key": false}
+      ],
+      "sample_rows": [
+        {"id": 1, "name": "Alice", "salary": 75000}
+      ]
+    }
+  ]
 }
 ```
 
-### Option B: PowerShell
-```powershell
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/query" -ContentType "application/json" -Body '{"question": "How many singers are there?", "db_id": "concert_singer"}'
-```
+### 2. Text2SQL Query (`POST /query`)
+Ask a plain-English question on your uploaded database (or any Spider database):
 
-### Option C: cURL
 ```bash
 curl -X POST "http://127.0.0.1:8000/query" \
   -H "Content-Type: application/json" \
-  -d '{"question": "How many singers are there?", "db_id": "concert_singer"}'
+  -d '{"question": "What is the average salary in staff?", "db_id": "company_db"}'
 ```
 
-### Example JSON Response
+**Response:**
 ```json
 {
-  "question": "How many singers are there?",
-  "generated_sql": "SELECT count(*) FROM singer",
-  "answer": "[[6]]",
-  "retrieved_schema_summary": ["singer", "concert"],
+  "question": "What is the average salary in staff?",
+  "generated_sql": "SELECT AVG(salary) FROM staff",
+  "answer": "[[78500.0]]",
+  "column_names": ["AVG(salary)"],
+  "rows": [[78500.0]],
+  "retrieved_schema_summary": ["staff"],
   "execution_metadata": {
     "success": true,
     "row_count": 1,
-    "latency_ms": 4.7
-  },
-  "flags": []
+    "latency_ms": 3.8
+  }
 }
+```
+
+### 3. Database Explorer (`GET /databases`)
+List all uploaded and pre-indexed databases:
+
+```bash
+curl -X GET "http://127.0.0.1:8000/databases"
+```
+
+### 4. Table Data Preview
+Retrieve paginated rows directly for any table:
+
+```bash
+curl -X GET "http://127.0.0.1:8000/databases/company_db/tables/staff/data?limit=25&offset=0"
 ```
 
 ---
 
 ## 📊 Running Experiments & Benchmarks
 
-You can evaluate how well the AI answers questions across the Spider benchmark:
+Evaluate Text2SQL accuracy on the Spider benchmark dataset:
 
 ```powershell
 uv run python scripts/run_experiment.py --variants baseline deterministic --limit 10 --concurrency 1
 ```
-
-> ⚠️ **Note for Free Tier Users:** Always keep `--concurrency 1` so you don't exceed your free API rate limits.
-
-### Sample Benchmark Output:
-```text
-================================================================================
-EXPERIMENT RESULTS
-================================================================================
-Variant         Exec Acc   Exact Match  Schema Recall  Latency(ms)  Retries
---------------------------------------------------------------------------------
-baseline        1.000      0.600        1.000          7.9          N/A
-deterministic   1.000      0.600        1.000          4.7          N/A
---------------------------------------------------------------------------------
-Winner: baseline
-================================================================================
-```
-* **Exec Acc (1.000):** 100% of generated queries returned the exact right database results.
-* **Schema Recall (1.000):** ChromaDB found 100% of the needed tables.
-* **Exact Match (0.600):** 60% of queries matched human-written gold SQL token-for-token.
 
 ---
 
@@ -227,21 +242,22 @@ Winner: baseline
 ```text
 DataPilot AI/
 ├── app/
-│   ├── api/            # FastAPI routes (/health, /query) and request/response models
-│   ├── core/           # Configuration (.env), logging, and LLM factory
-│   ├── db/             # Database introspection, schema models, SQL validator & executor
-│   ├── llm/            # System prompts, few-shot prompt assembly, and SQL generator
-│   ├── pipeline/       # Pipeline engines: Baseline, Deterministic (LangGraph), ReAct Agent
+│   ├── api/            # FastAPI routes (/health, /query, /upload, /databases) & Pydantic models
+│   ├── core/           # Configuration (AppSettings), logging, and LLM provider factory
+│   ├── db/             # File ingestion (ingest.py), storage manager (storage.py), validator & executor
+│   ├── llm/            # System prompts, prompt assembler, and SQL generator
+│   ├── pipeline/       # Pipeline variants: Baseline, Deterministic (LangGraph), ReAct Agent
 │   ├── profiler/       # Optional PostgreSQL execution plan parser and transpiler
-│   └── retrieval/      # ChromaDB vector retrieval for schemas and few-shot examples
-├── docs/               # Detailed architecture, dataset guides, and technical design notes
-├── scripts/
-│   ├── index_spider.py     # Indexes schemas and training examples into ChromaDB
-│   └── run_experiment.py   # Runs accuracy benchmarks against Spider dev set
-├── tests/              # Comprehensive unit and integration test suite (pytest)
-├── .env                # Your active API keys and configuration
-├── pyproject.toml      # Python dependencies and tool configuration
-└── README.md           # Project documentation
+│   └── retrieval/      # ChromaDB vector retrieval with direct-table & semantic fallbacks
+├── frontend/           # React 19 + Vite + TypeScript + Tailwind CSS v4 + shadcn UI
+│   ├── src/            # Components, hooks, utilities, and application layout
+│   └── components.json # shadcn configuration with @react-bits registry
+├── docs/               # Architecture and dataset documentation
+├── scripts/            # Database indexing and benchmark runners
+├── tests/              # Test suite (unit and integration tests)
+├── .env.example        # Environment variable template
+├── pyproject.toml      # Python dependencies and build settings
+└── README.md           # Documentation
 ```
 
 ---
@@ -254,7 +270,9 @@ uv run pytest
 
 # Check code formatting & linting
 uv run ruff check .
-uv run ruff format --check .
+
+# Auto-fix linting issues
+uv run ruff check --fix .
 
 # Run static type checking
 uv run mypy app

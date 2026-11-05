@@ -7,7 +7,6 @@ that pre-fills the ``services`` argument.  Never add a node directly to the grap
 through ``bind_nodes``.
 """
 
-import os
 import time
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
@@ -21,6 +20,7 @@ from sqlglot import expressions as _sqlglot_exp
 from app.api.models import ExecutionMetadata, QueryResponse
 from app.core.config import get_settings
 from app.db.executor import SQLExecutor
+from app.db.storage import resolve_db_path
 from app.db.validator import SQLValidator, ValidationResult
 from app.llm.generator import SQLGenerator, extract_text
 from app.llm.prompts import build_repair_prompt
@@ -272,7 +272,7 @@ async def validate_sql_node(state: PipelineState, services: NodeServices) -> Pip
 async def execute_sql_node(state: PipelineState, services: NodeServices) -> PipelineState:
     start = time.monotonic()
     db_id = state["request"].db_id
-    db_path = os.path.join(services.spider_data_dir, "database", db_id, f"{db_id}.sqlite")
+    db_path = resolve_db_path(db_id, services.spider_data_dir)
     generated_sql = state.get("generated_sql") or ""
     execution_result = await services.executor.execute(generated_sql, db_path)
     elapsed_ms = (time.monotonic() - start) * 1000

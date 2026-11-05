@@ -5,6 +5,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, Field
 
 from app.db.executor import SQLExecutor
+from app.db.storage import resolve_db_path
 from app.db.validator import SQLValidator
 from app.retrieval.example_retriever import ExampleRetriever
 from app.retrieval.schema_retriever import SchemaRetriever
@@ -70,7 +71,7 @@ def make_tools(context: ToolContext) -> list[BaseTool]:
 
     async def _execute_sql(sql: str, db_id: str) -> str:
         """Execute SQL against the database."""
-        db_path = f"{context.spider_data_dir}/database/{db_id}/{db_id}.sqlite"
+        db_path = resolve_db_path(db_id, context.spider_data_dir)
         result = await context.executor.execute(sql, db_path)
         truncated = result.error == "Result truncated"
         return json.dumps(

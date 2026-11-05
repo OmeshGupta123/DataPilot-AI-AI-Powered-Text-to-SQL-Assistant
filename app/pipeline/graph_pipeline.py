@@ -168,6 +168,8 @@ class DeterministicGraphPipeline:
             generated_sql=gen_sql,
             draft_sql=draft_sql,
             answer=answer,
+            column_names=exec_result.column_names if exec_result and exec_result.success else [],
+            rows=exec_result.rows if exec_result and exec_result.success else [],
             retrieved_schema_summary=[d.table_name for d in schema_docs],
             retrieved_examples_summary=[e.question for e in example_docs],
             execution_metadata=execution_metadata,

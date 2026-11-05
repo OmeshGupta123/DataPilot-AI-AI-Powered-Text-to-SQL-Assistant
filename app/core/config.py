@@ -17,6 +17,7 @@ class AppSettings(BaseSettings):
     embedding_model: str = "all-MiniLM-L6-v2"
     chroma_persist_dir: str = ".chroma"
     spider_data_dir: str = "spider_data"
+    upload_dir: str = "uploads"
     log_level: str = "INFO"
     max_result_rows: int = 100
     query_timeout_seconds: int = 30

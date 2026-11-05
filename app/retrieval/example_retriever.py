@@ -47,9 +47,20 @@ class ExampleRetriever:
             where=cast(Any, where),
         )
         docs: list[ExampleDocument] = []
-        if results["metadatas"] is None:
+        metadatas = results.get("metadatas")
+        if (metadatas is None or not metadatas or not metadatas[0]) and db_id is not None:
+            # Fallback: retrieve general examples without db_id restriction
+            fallback_results = await asyncio.to_thread(
+                self.collection.query,
+                query_embeddings=cast(Any, [query_embedding]),
+                n_results=top_k,
+            )
+            metadatas = fallback_results.get("metadatas")
+
+        if metadatas is None or not metadatas or not metadatas[0]:
             return docs
-        for meta in results["metadatas"][0]:
+
+        for meta in metadatas[0]:
             docs.append(
                 ExampleDocument(
                     db_id=str(meta["db_id"]),
