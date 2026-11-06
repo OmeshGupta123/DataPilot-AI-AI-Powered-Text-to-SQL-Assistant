@@ -16,13 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend codebase and dataset references
+# Copy backend codebase and sample data
 COPY app/ ./app/
-COPY spider_data/ ./spider_data/
 COPY sample_data/ ./sample_data/
 
 # Ensure runtime directories exist
-RUN mkdir -p uploads .chroma
+RUN mkdir -p uploads spider_data .chroma
 
 EXPOSE 8000
 

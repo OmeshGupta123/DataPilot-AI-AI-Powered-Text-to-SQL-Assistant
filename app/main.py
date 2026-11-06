@@ -56,6 +56,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     set_pipeline(pipeline)
     set_schema_retriever(schema_retriever)
+
+    # Seed demo store database from sample_data if uploads has no demo db
+    try:
+        upload_path = Path(settings.upload_dir)
+        upload_path.mkdir(parents=True, exist_ok=True)
+        demo_db_path = upload_path / "demo_store.sqlite"
+        sample_dir = Path("sample_data")
+        if not demo_db_path.exists() and sample_dir.exists():
+            cust_csv = sample_dir / "customers.csv"
+            prod_csv = sample_dir / "products.csv"
+            if cust_csv.exists() and prod_csv.exists():
+                import pandas as pd
+                import sqlalchemy
+                engine = sqlalchemy.create_engine(f"sqlite:///{demo_db_path}")
+                pd.read_csv(cust_csv).to_sql("customers", engine, if_exists="replace", index=False)
+                pd.read_csv(prod_csv).to_sql("products", engine, if_exists="replace", index=False)
+    except Exception:
+        pass
+
     yield
 
 
