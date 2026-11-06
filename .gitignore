@@ -28,6 +28,8 @@ __pycache__/
 .ruff_cache/
 .dmypy.json
 dmypy.json
+*.tsbuildinfo
+
 
 # ==========================================
 # Testing & Code Coverage
@@ -64,11 +66,13 @@ uploads/
 *.db
 
 # ==========================================
-# Frontend Node.js
+# Frontend Node.js & Next.js
 # ==========================================
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/.next/
+.next/
 frontend/.oxlintrc.json
 
 # ==========================================

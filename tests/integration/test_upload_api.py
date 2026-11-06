@@ -89,6 +89,34 @@ async def test_full_upload_and_query_flow(app: FastAPI, tmp_path: Path) -> None:
                 assert q_json["column_names"] == ["customer_id", "name", "city", "total_spend"]
                 assert q_json["rows"] == [[2, "Bob", "London", 850.0]]
 
+            # 5b. Direct SQL execution via /execute
+            exec_res = await client.post(
+                "/execute",
+                json={
+                    "sql": "SELECT name, total_spend FROM customers ORDER BY total_spend DESC",
+                    "db_id": "test_crm",
+                },
+            )
+            assert exec_res.status_code == 200
+            e_json = exec_res.json()
+            assert e_json["success"] is True
+            assert e_json["column_names"] == ["name", "total_spend"]
+            assert len(e_json["rows"]) == 3
+            assert e_json["rows"][0] == ["Charlie", 2400.0]
+
+            # 5c. SQL validation failure on non-SELECT
+            bad_exec_res = await client.post(
+                "/execute",
+                json={
+                    "sql": "DROP TABLE customers",
+                    "db_id": "test_crm",
+                },
+            )
+            assert bad_exec_res.status_code == 200
+            bad_json = bad_exec_res.json()
+            assert bad_json["success"] is False
+            assert "validation error" in bad_json["error"]
+
             # 6. Delete the database
             del_res = await client.delete("/databases/test_crm")
             assert del_res.status_code == 200

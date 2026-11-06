@@ -77,6 +77,22 @@ class TableDataResponse(BaseModel):
     limit: int = 50
 
 
+class ExecuteRequest(BaseModel):
+    sql: str
+    db_id: str
+    max_rows: int = 200
+
+
+class ExecuteResponse(BaseModel):
+    success: bool
+    sql: str
+    column_names: list[str] = Field(default_factory=list)
+    rows: list[list[Any]] = Field(default_factory=list)
+    row_count: int = 0
+    latency_ms: float = 0.0
+    error: str | None = None
+
+
 class ErrorResponse(BaseModel):
     error: str
     detail: str | None = None

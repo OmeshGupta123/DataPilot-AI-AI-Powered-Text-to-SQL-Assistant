@@ -6,11 +6,14 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from app.api.models import (
     DatabaseInfo,
     DatabaseListResponse,
+    ExecuteRequest,
+    ExecuteResponse,
     QueryRequest,
     QueryResponse,
     TableDataResponse,
     UploadResponse,
 )
+from app.db.executor import SQLExecutor
 from app.db.ingest import ingest_uploaded_file
 from app.db.introspection import extract_schema
 from app.db.storage import (
@@ -20,6 +23,7 @@ from app.db.storage import (
     list_all_databases,
     resolve_db_path,
 )
+from app.db.validator import SQLValidator
 from app.pipeline.guardrails import check_input_guardrail
 from app.pipeline.protocol import Pipeline
 from app.retrieval.schema_retriever import SchemaRetriever
@@ -63,6 +67,37 @@ async def query(request: QueryRequest) -> QueryResponse:
         raise HTTPException(status_code=422, detail=result.reason)
     pipeline = get_pipeline()
     return await pipeline.run(request)
+
+
+@router.post("/execute", response_model=ExecuteResponse)
+async def execute_sql(request: ExecuteRequest) -> ExecuteResponse:
+    """Directly execute a user-authored or edited read-only SQL query against the specified database."""
+    db_path = resolve_db_path(request.db_id)
+    if not Path(db_path).is_file():
+        raise HTTPException(status_code=404, detail=f"Database '{request.db_id}' not found.")
+
+    validator = SQLValidator()
+    validation = validator.validate(request.sql)
+    if not validation.valid:
+        return ExecuteResponse(
+            success=False,
+            sql=request.sql,
+            error=f"SQL validation error: {validation.error}",
+            latency_ms=0.0,
+        )
+
+    executor = SQLExecutor(max_rows=request.max_rows)
+    exec_result = await executor.execute(request.sql, db_path)
+
+    return ExecuteResponse(
+        success=exec_result.success,
+        sql=request.sql,
+        column_names=exec_result.column_names,
+        rows=exec_result.rows,
+        row_count=exec_result.row_count,
+        latency_ms=round(exec_result.latency_ms, 2),
+        error=exec_result.error,
+    )
 
 
 @router.post("/upload", response_model=UploadResponse)

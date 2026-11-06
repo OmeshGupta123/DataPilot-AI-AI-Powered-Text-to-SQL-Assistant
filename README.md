@@ -139,20 +139,42 @@ uv run uvicorn app.main:app --reload
 ```
 The API is now live at **`http://127.0.0.1:8000`** (Swagger docs at `http://127.0.0.1:8000/docs`).
 
-### 4. Start the Frontend (Optional)
+### 4. Start the Frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-The Vite React app will be live at **`http://localhost:5173`**.
+The Next.js 16 application will be live at **`http://localhost:3000`**.
 
 ---
 
 ## 🧪 API Reference & Testing
 
-### 1. File Upload (`POST /upload`)
+### 1. Direct SQL Execution (`POST /execute`)
+Execute any user-authored or edited read-only SQL query directly against the target database:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/execute" \
+  -H "Content-Type: application/json" \
+  -d '{"sql": "SELECT name, salary FROM staff ORDER BY salary DESC LIMIT 5", "db_id": "company_db"}'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "sql": "SELECT name, salary FROM staff ORDER BY salary DESC LIMIT 5",
+  "column_names": ["name", "salary"],
+  "rows": [["Alice", 95000], ["Bob", 82000]],
+  "row_count": 2,
+  "latency_ms": 1.45,
+  "error": null
+}
+```
+
+### 2. File Upload (`POST /upload`)
 Upload a table file to create a queryable database:
 
 ```bash
@@ -249,9 +271,10 @@ DataPilot AI/
 │   ├── pipeline/       # Pipeline variants: Baseline, Deterministic (LangGraph), ReAct Agent
 │   ├── profiler/       # Optional PostgreSQL execution plan parser and transpiler
 │   └── retrieval/      # ChromaDB vector retrieval with direct-table & semantic fallbacks
-├── frontend/           # React 19 + Vite + TypeScript + Tailwind CSS v4 + shadcn UI
-│   ├── src/            # Components, hooks, utilities, and application layout
-│   └── components.json # shadcn configuration with @react-bits registry
+├── frontend/           # Next.js 16 + React 19 + TypeScript + Tailwind CSS v4 + shadcn UI
+│   ├── app/            # App Router (page.tsx, layout.tsx, globals.css)
+│   ├── components/     # UI components (buttons, icons, docks)
+│   └── components.json # shadcn configuration
 ├── docs/               # Architecture and dataset documentation
 ├── scripts/            # Database indexing and benchmark runners
 ├── tests/              # Test suite (unit and integration tests)

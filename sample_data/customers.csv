@@ -1,0 +1,12 @@
+customer_id,name,email,city,country,total_orders,total_spend
+1,Alice Johnson,alice@example.com,New York,USA,12,1450.50
+2,Bob Smith,bob@example.com,London,UK,8,890.00
+3,Charlie Brown,charlie@example.com,Toronto,Canada,15,2300.75
+4,Diana Prince,diana@example.com,Paris,France,5,420.25
+5,Evan Wright,evan@example.com,Sydney,Australia,22,3890.00
+6,Fiona Gallagher,fiona@example.com,Chicago,USA,9,950.40
+7,George Clark,george@example.com,Berlin,Germany,18,2780.10
+8,Hannah Abbott,hannah@example.com,Manchester,UK,3,290.00
+9,Ian Malcolm,ian@example.com,Austin,USA,14,1950.80
+10,Julia Roberts,julia@example.com,Rome,Italy,11,1620.00
+
