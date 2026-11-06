@@ -1,0 +1,14 @@
+.git
+.venv
+frontend
+node_modules
+.next
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+tests
+checkpoints
+results.csv
+experiment_report_*.json
