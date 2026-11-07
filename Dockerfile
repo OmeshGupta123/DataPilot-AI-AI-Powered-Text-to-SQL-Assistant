@@ -1,8 +1,7 @@
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=7860
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
@@ -16,18 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files and sample datasets
+# Copy backend codebase and sample datasets (spider_data is gitignored, so we create it below)
 COPY app/ ./app/
-COPY spider_data/ ./spider_data/
 COPY sample_data/ ./sample_data/
 
-# Create runtime directories and set up non-root user (compatible with Hugging Face Spaces & Railway)
-RUN mkdir -p uploads .chroma && \
-    useradd -m -u 1000 user && \
-    chown -R user:user /app
+# Create runtime directories for uploads, vector store, and spider data
+RUN mkdir -p uploads .chroma spider_data
 
-USER user
+EXPOSE 8000
 
-EXPOSE 7860
-
-CMD ["sh", "-c", "uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT:-8000}"]

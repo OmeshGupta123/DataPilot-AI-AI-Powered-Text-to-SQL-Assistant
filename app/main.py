@@ -1,4 +1,3 @@
-import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,66 +19,43 @@ from app.retrieval.embeddings import get_embeddings
 from app.retrieval.example_retriever import ExampleRetriever
 from app.retrieval.schema_retriever import SchemaRetriever
 
-logger = logging.getLogger("datapilot")
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    # Ensure upload and chroma directories exist
+    # Ensure upload directory exists
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
 
-    try:
-        chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
-        embeddings = get_embeddings(settings.embedding_provider, settings.embedding_model)
+    chroma_client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
+    embeddings = get_embeddings(settings.embedding_provider, settings.embedding_model)
 
-        schema_retriever = SchemaRetriever(
-            embeddings=embeddings,
-            collection_name="spider_schemas",
-            chroma_client=chroma_client,
-        )
-        example_retriever = ExampleRetriever(
-            embeddings=embeddings,
-            collection_name="spider_examples",
-            chroma_client=chroma_client,
-        )
-        pipeline = build_pipeline(
-            schema_retriever=schema_retriever,
-            example_retriever=example_retriever,
-            assembler=PromptAssembler(),
-            generator=SQLGenerator(llm=get_llm(settings.llm_provider, settings.llm_model)),
-            validator=SQLValidator(),
-            executor=SQLExecutor(
-                max_rows=settings.max_result_rows,
-                timeout_seconds=settings.query_timeout_seconds,
-            ),
-            spider_data_dir=settings.spider_data_dir,
-            variant=settings.pipeline_variant,
-        )
-        set_pipeline(pipeline)
-        set_schema_retriever(schema_retriever)
-    except Exception as e:
-        logger.warning("Pipeline initialization warning: %s", e)
-
-    # Seed demo store database from sample_data if uploads has no demo db
-    try:
-        demo_db_path = Path(settings.upload_dir) / "demo_store.sqlite"
-        sample_dir = Path("sample_data")
-        if not demo_db_path.exists() and sample_dir.exists():
-            cust_csv = sample_dir / "customers.csv"
-            prod_csv = sample_dir / "products.csv"
-            if cust_csv.exists() and prod_csv.exists():
-                import pandas as pd
-                import sqlalchemy
-                engine = sqlalchemy.create_engine(f"sqlite:///{demo_db_path}")
-                pd.read_csv(cust_csv).to_sql("customers", engine, if_exists="replace", index=False)
-                pd.read_csv(prod_csv).to_sql("products", engine, if_exists="replace", index=False)
-    except Exception as e:
-        logger.warning("Demo store seeding warning: %s", e)
-
+    schema_retriever = SchemaRetriever(
+        embeddings=embeddings,
+        collection_name="spider_schemas",
+        chroma_client=chroma_client,
+    )
+    example_retriever = ExampleRetriever(
+        embeddings=embeddings,
+        collection_name="spider_examples",
+        chroma_client=chroma_client,
+    )
+    pipeline = build_pipeline(
+        schema_retriever=schema_retriever,
+        example_retriever=example_retriever,
+        assembler=PromptAssembler(),
+        generator=SQLGenerator(llm=get_llm(settings.llm_provider, settings.llm_model)),
+        validator=SQLValidator(),
+        executor=SQLExecutor(
+            max_rows=settings.max_result_rows,
+            timeout_seconds=settings.query_timeout_seconds,
+        ),
+        spider_data_dir=settings.spider_data_dir,
+        variant=settings.pipeline_variant,
+    )
+    set_pipeline(pipeline)
+    set_schema_retriever(schema_retriever)
     yield
 
 
