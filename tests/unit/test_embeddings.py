@@ -13,8 +13,16 @@ def test_get_embeddings_openai() -> None:
         assert result is mock_cls.return_value
 
 
+def test_get_embeddings_google() -> None:
+    with patch("app.retrieval.embeddings.GoogleGenerativeAIEmbeddings") as mock_cls:
+        mock_cls.return_value = MagicMock()
+        result = get_embeddings("google", "models/text-embedding-004")
+        mock_cls.assert_called_once()
+        assert result is mock_cls.return_value
+
+
 def test_get_embeddings_sentence_transformers() -> None:
-    with patch("langchain_community.embeddings.HuggingFaceEmbeddings") as mock_cls:
+    with patch("langchain_huggingface.HuggingFaceEmbeddings") as mock_cls:
         mock_cls.return_value = MagicMock()
         result = get_embeddings("sentence-transformers", "all-MiniLM-L6-v2")
         mock_cls.assert_called_once_with(model_name="all-MiniLM-L6-v2")
@@ -22,5 +30,7 @@ def test_get_embeddings_sentence_transformers() -> None:
 
 
 def test_get_embeddings_unknown_raises() -> None:
-    with pytest.raises(ValueError, match="Unsupported embedding provider"):
-        get_embeddings("unknown", "some-model")
+    with patch("app.retrieval.embeddings.get_settings") as mock_settings:
+        mock_settings.return_value.gemini_api_key = ""
+        with pytest.raises(ValueError, match="Unsupported embedding provider"):
+            get_embeddings("unknown", "some-model")
