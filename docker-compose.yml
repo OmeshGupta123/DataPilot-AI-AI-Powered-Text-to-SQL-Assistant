@@ -1,6 +1,26 @@
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: datapilot-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+    volumes:
+      - ./spider_data:/app/spider_data
+      - ./uploads:/app/uploads
+      - ./.chroma:/app/.chroma
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
+    container_name: datapilot-postgres
     environment:
       POSTGRES_USER: text2sql
       POSTGRES_PASSWORD: text2sql

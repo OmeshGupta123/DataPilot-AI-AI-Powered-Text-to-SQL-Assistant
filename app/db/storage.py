@@ -30,6 +30,9 @@ def resolve_db_path(
     effective_upload_dir = upload_dir or getattr(settings, "upload_dir", "uploads")
     effective_spider_dir = spider_data_dir or getattr(settings, "spider_data_dir", "spider_data")
 
+    if db_id == "sales_demo":
+        seed_demo_database(effective_upload_dir)
+
     # 2. Upload directory checks
     upload_sqlite = Path(effective_upload_dir) / f"{db_id}.sqlite"
     if upload_sqlite.is_file():
@@ -149,10 +152,89 @@ def get_database_info(
     )
 
 
+def seed_demo_database(upload_dir: str | None = None) -> None:
+    """Ensure a default demo database (sales_demo.sqlite) exists with sample products and orders."""
+    import sqlite3
+
+    settings = get_settings()
+    effective_upload_dir = Path(upload_dir or getattr(settings, "upload_dir", "uploads"))
+    effective_upload_dir.mkdir(parents=True, exist_ok=True)
+    demo_db_path = effective_upload_dir / "sales_demo.sqlite"
+
+    if demo_db_path.exists():
+        return
+
+    try:
+        conn = sqlite3.connect(str(demo_db_path))
+        c = conn.cursor()
+        c.execute("""CREATE TABLE IF NOT EXISTS products (
+            product_id INTEGER PRIMARY KEY,
+            name TEXT,
+            description TEXT,
+            price REAL,
+            stock_quantity INTEGER
+        )""")
+        c.execute("""CREATE TABLE IF NOT EXISTS order_items (
+            order_item_id INTEGER PRIMARY KEY,
+            order_id INTEGER,
+            product_id INTEGER,
+            quantity INTEGER,
+            price_per_unit REAL
+        )""")
+        c.execute("""CREATE TABLE IF NOT EXISTS orders (
+            order_id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            order_date TEXT,
+            total_amount REAL
+        )""")
+        c.execute("""CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            email TEXT,
+            created_at TEXT
+        )""")
+        c.executemany("INSERT INTO products VALUES (?, ?, ?, ?, ?)", [
+            (1, "Wireless Noise-Canceling Headphones", "Premium over-ear audio with 30h battery", 199.99, 45),
+            (2, "Ergonomic Mechanical Keyboard", "RGB mechanical keyboard with red linear switches", 129.50, 60),
+            (3, "Ultra-Wide Curved Monitor 34-inch", "144Hz WQHD IPS display for productivity", 499.00, 20),
+            (4, "USB-C Multi-Port Docking Station", "Dual 4K HDMI, 100W Power Delivery, Gigabit LAN", 79.99, 110),
+            (5, "Precision Wireless Mouse", "High-accuracy sensor with silent click switches", 49.99, 85),
+        ])
+        c.executemany("INSERT INTO order_items VALUES (?, ?, ?, ?, ?)", [
+            (1, 101, 1, 2, 199.99),
+            (2, 101, 5, 1, 49.99),
+            (3, 102, 2, 1, 129.50),
+            (4, 103, 3, 1, 499.00),
+            (5, 103, 4, 2, 79.99),
+            (6, 104, 1, 3, 199.99),
+            (7, 105, 4, 1, 79.99),
+            (8, 106, 5, 4, 49.99),
+        ])
+        c.executemany("INSERT INTO orders VALUES (?, ?, ?, ?)", [
+            (101, 1, "2026-03-01", 449.97),
+            (102, 2, "2026-03-02", 129.50),
+            (103, 3, "2026-03-03", 658.98),
+            (104, 1, "2026-03-04", 599.97),
+            (105, 4, "2026-03-05", 79.99),
+            (106, 2, "2026-03-06", 199.96),
+        ])
+        c.executemany("INSERT INTO users VALUES (?, ?, ?, ?)", [
+            (1, "sarah_tech", "sarah@example.com", "2026-01-15 10:20:00"),
+            (2, "alex_dev", "alex@example.com", "2026-01-20 14:10:00"),
+            (3, "elena_data", "elena@example.com", "2026-02-01 09:30:00"),
+            (4, "marcus_ai", "marcus@example.com", "2026-02-10 16:45:00"),
+        ])
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
 def list_all_databases(
     spider_data_dir: str | None = None, upload_dir: str | None = None
 ) -> list[DatabaseInfo]:
     """Scan and list all databases from both uploaded directory and spider dataset."""
+    seed_demo_database(upload_dir)
     settings = get_settings()
     effective_upload_dir = Path(upload_dir or getattr(settings, "upload_dir", "uploads"))
     effective_spider_dir = Path(spider_data_dir or getattr(settings, "spider_data_dir", "spider_data"))
