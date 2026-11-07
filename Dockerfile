@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install minimal build tools
+# Install minimal system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
@@ -16,13 +16,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend codebase and sample data
+# Copy application files and sample datasets
 COPY app/ ./app/
+COPY spider_data/ ./spider_data/
 COPY sample_data/ ./sample_data/
 
-# Ensure runtime directories exist and are writable by any user
-RUN mkdir -p uploads spider_data .chroma && chmod -R 777 uploads spider_data .chroma
+# Create runtime directories and set up non-root user (compatible with Hugging Face Spaces & Railway)
+RUN mkdir -p uploads .chroma && \
+    useradd -m -u 1000 user && \
+    chown -R user:user /app
+
+USER user
 
 EXPOSE 7860
 
-CMD ["sh", "-c", "uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT:-7860}"]
+CMD ["sh", "-c", "uvicorn app.main:create_app --factory --host 0.0.0.0 --port ${PORT}"]
