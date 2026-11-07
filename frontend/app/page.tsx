@@ -245,6 +245,8 @@ export default function Page() {
     try {
       const res = await fetch(`${API_BASE}/databases`)
       if (!res.ok) throw new Error('API offline')
+      const isJson = res.headers.get('content-type')?.includes('application/json')
+      if (!isJson) throw new Error('API returned non-JSON')
       const data = await res.json()
       const list: DatabaseItem[] = data.databases ?? []
       setDatabases(list)
@@ -338,6 +340,14 @@ export default function Page() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sql: sqlToRun, db_id: dbId, max_rows: 300 }),
         })
+        const isJson = response.headers.get('content-type')?.includes('application/json')
+        if (!isJson) {
+          throw new Error(
+            !response.ok
+              ? `Backend HTTP ${response.status} (${response.statusText || 'Error'}): Server is offline or URL is misconfigured (${API_BASE})`
+              : `Received unexpected non-JSON response from ${API_BASE}/execute`
+          )
+        }
         const data = await response.json()
         if (!response.ok || !data.success) {
           setResult({
@@ -398,6 +408,14 @@ export default function Page() {
       const fd = new FormData()
       fd.append('file', file)
       const res = await fetch(`${API_BASE}/upload`, { method: 'POST', body: fd })
+      const isJson = res.headers.get('content-type')?.includes('application/json')
+      if (!isJson) {
+        throw new Error(
+          !res.ok
+            ? `Upload failed: Backend HTTP ${res.status} (${API_BASE})`
+            : `Upload failed: Unexpected response from ${API_BASE}/upload`
+        )
+      }
       const data = await res.json()
       if (!res.ok || !data.success) {
         throw new Error(data.detail ?? data.message ?? 'Upload failed')
@@ -446,6 +464,14 @@ export default function Page() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: prompt, db_id: dbId, top_k_schema: 5, top_k_examples: 3 }),
       })
+      const isJson = res.headers.get('content-type')?.includes('application/json')
+      if (!isJson) {
+        throw new Error(
+          !res.ok
+            ? `Backend HTTP ${res.status}: Server is offline or URL is misconfigured (${API_BASE})`
+            : `Received non-JSON response from ${API_BASE}/query`
+        )
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail ?? 'Query generation failed')
 
