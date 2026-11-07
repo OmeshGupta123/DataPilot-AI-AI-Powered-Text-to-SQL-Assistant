@@ -244,10 +244,9 @@ export default function Page() {
   const fetchDatabases = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/databases`)
-      if (!res.ok) throw new Error('API offline')
-      const isJson = res.headers.get('content-type')?.includes('application/json')
-      if (!isJson) throw new Error('API returned non-JSON')
-      const data = await res.json()
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const rawText = await res.text()
+      const data = JSON.parse(rawText)
       const list: DatabaseItem[] = data.databases ?? []
       setDatabases(list)
       setApiConnected(true)
@@ -340,15 +339,15 @@ export default function Page() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sql: sqlToRun, db_id: dbId, max_rows: 300 }),
         })
-        const isJson = response.headers.get('content-type')?.includes('application/json')
-        if (!isJson) {
+        const rawText = await response.text()
+        let data: any = null
+        try {
+          data = JSON.parse(rawText)
+        } catch {
           throw new Error(
-            !response.ok
-              ? `Backend HTTP ${response.status} (${response.statusText || 'Error'}): Server is offline or URL is misconfigured (${API_BASE})`
-              : `Received unexpected non-JSON response from ${API_BASE}/execute`
+            `Backend returned HTTP ${response.status} (${response.statusText || 'Error'}), but response was HTML instead of JSON from ${API_BASE}/execute. Please verify your backend is running at ${API_BASE}`
           )
         }
-        const data = await response.json()
         if (!response.ok || !data.success) {
           setResult({
             columns: [],
@@ -356,7 +355,7 @@ export default function Page() {
             latency: data?.latency_ms ?? performance.now() - start,
             rowCount: 0,
             success: false,
-            error: data?.error ?? data?.detail ?? 'Failed to execute query.',
+            error: data?.error ?? data?.detail ?? `Query failed (HTTP ${response.status})`,
           })
         } else {
           setResult({
@@ -464,16 +463,16 @@ export default function Page() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: prompt, db_id: dbId, top_k_schema: 5, top_k_examples: 3 }),
       })
-      const isJson = res.headers.get('content-type')?.includes('application/json')
-      if (!isJson) {
+      const rawText = await res.text()
+      let data: any = null
+      try {
+        data = JSON.parse(rawText)
+      } catch {
         throw new Error(
-          !res.ok
-            ? `Backend HTTP ${res.status}: Server is offline or URL is misconfigured (${API_BASE})`
-            : `Received non-JSON response from ${API_BASE}/query`
+          `Backend returned HTTP ${res.status}: HTML error received from ${API_BASE}/query. Verify backend is running.`
         )
       }
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail ?? 'Query generation failed')
+      if (!res.ok) throw new Error(data?.detail ?? `Query generation failed (HTTP ${res.status})`)
 
       const generated = data.generated_sql ?? ''
       const answer = data.answer ?? 'Here is your SQL query:'
@@ -1335,7 +1334,9 @@ export default function Page() {
                 boxShadow: apiConnected ? '0 0 6px #4ec9b0' : 'none',
               }}
             />
-            <span>{apiConnected ? 'API: 8000' : 'API: Offline'}</span>
+            <span title={`API URL: ${API_BASE}`}>
+              {apiConnected ? 'API: Online' : `API: Offline (${API_BASE})`}
+            </span>
           </div>
           <div
             className="statusbar-item"
